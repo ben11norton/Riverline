@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flood Risk Screening — Business Plan</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 50%, #1a1a2e 100%);
+            border-bottom: 1px solid #1e40af33;
+            padding: 2rem 2rem 1.5rem;
+        }
+        .header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #60a5fa;
+            margin-bottom: 0.25rem;
+        }
+        .header .subtitle {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+        .header-meta {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        .meta-badge {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+        .meta-badge span { color: #e2e8f0; font-weight: 600; }
+
+        /* Layout */
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+        .full-width { grid-column: 1 / -1; }
+
+        /* Cards */
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 0.85rem 1.25rem;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .card-header h2 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        .card-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        .card-body { padding: 1.25rem; }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        th {
+            text-align: left;
+            color: #64748b;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid #334155;
+        }
+        td {
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid #1e293b;
+            color: #cbd5e1;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #ffffff06; }
+
+        /* Flow Steps */
+        .flow-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.65rem 0;
+            border-bottom: 1px solid #ffffff08;
+        }
+        .flow-step:last-child { border-bottom: none; }
+        .step-num {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #1e40af;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .step-content { flex: 1; }
+        .step-action { color: #e2e8f0; font-size: 0.85rem; font-weight: 500; }
+        .step-source { color: #64748b; font-size: 0.75rem; }
+
+        /* Flood Gradient */
+        .gradient-bar {
+            display: flex;
+            border-radius: 8px;
+            overflow: hidden;
+            height: 36px;
+            margin-bottom: 0.75rem;
+        }
+        .gradient-segment {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #fff;
+        }
+        .gradient-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        /* Tech Stack */
+        .tech-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6rem;
+        }
+        .tech-item {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 0.7rem 0.85rem;
+        }
+        .tech-label {
+            font-size: 0.7rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.15rem;
+        }
+        .tech-value {
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            font-weight: 500;
+        }
+
+        /* Cost Totals */
+        .cost-total {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: #0f172a;
+            border-radius: 8px;
+            margin-top: 0.75rem;
+        }
+        .cost-total.low { border-left: 3px solid #22c55e; }
+        .cost-total.high { border-left: 3px solid #f59e0b; }
+        .cost-label { font-size: 0.8rem; color: #94a3b8; }
+        .cost-amount { font-size: 1.1rem; font-weight: 700; }
+        .cost-amount.green { color: #22c55e; }
+        .cost-amount.amber { color: #f59e0b; }
+
+        /* Revenue */
+        .revenue-single {
+            text-align: center;
+            padding: 1.5rem;
+        }
+        .revenue-single .label {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-bottom: 0.5rem;
+        }
+        .revenue-single .stream {
+            font-size: 1rem;
+            color: #e2e8f0;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        .revenue-single .type {
+            font-size: 0.8rem;
+            color: #f59e0b;
+        }
+        .revenue-warning {
+            background: #f59e0b15;
+            border: 1px solid #f59e0b33;
+            border-radius: 8px;
+            padding: 0.65rem 0.85rem;
+            margin-top: 0.75rem;
+            font-size: 0.8rem;
+            color: #fbbf24;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* Severity Badges */
+        .severity {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .severity.critical { background: #dc262615; color: #f87171; border: 1px solid #dc262633; }
+        .severity.high { background: #f59e0b15; color: #fbbf24; border: 1px solid #f59e0b33; }
+        .severity.medium { background: #3b82f615; color: #60a5fa; border: 1px solid #3b82f633; }
+        .severity.low { background: #22c55e15; color: #4ade80; border: 1px solid #22c55e33; }
+
+        /* Gap Category */
+        .gap-category {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #64748b;
+            padding: 0.75rem 0.75rem 0.25rem;
+        }
+
+        /* Viability Levers */
+        .lever-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 0;
+            border-bottom: 1px solid #ffffff08;
+        }
+        .lever-item:last-child { border-bottom: none; }
+        .lever-type {
+            font-size: 0.65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+        .lever-type.recurring { background: #22c55e20; color: #4ade80; border: 1px solid #22c55e33; }
+        .lever-type.transaction { background: #3b82f620; color: #60a5fa; border: 1px solid #3b82f633; }
+        .lever-type.premium { background: #a855f720; color: #c084fc; border: 1px solid #a855f733; }
+        .lever-type.expansion { background: #f59e0b20; color: #fbbf24; border: 1px solid #f59e0b33; }
+        .lever-desc { font-size: 0.85rem; color: #cbd5e1; }
+
+        /* Takeaway */
+        .takeaway {
+            background: linear-gradient(135deg, #1e40af15, #7c3aed15);
+            border: 1px solid #6366f133;
+            border-radius: 8px;
+            padding: 1.25rem;
+            font-size: 0.9rem;
+            line-height: 1.7;
+            color: #cbd5e1;
+        }
+        .takeaway strong { color: #60a5fa; }
+
+        /* Next Steps */
+        .step-list {
+            list-style: none;
+            padding: 0;
+        }
+        .step-list li {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #ffffff08;
+            font-size: 0.85rem;
+            color: #cbd5e1;
+        }
+        .step-list li:last-child { border-bottom: none; }
+        .checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #475569;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .dashboard { grid-template-columns: 1fr; }
+            .tech-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <h1>Flood Risk Screening Tool</h1>
+        <div class="subtitle">Business Plan & Gap Analysis — Western Cape, South Africa</div>
+        <div class="header-meta">
+            <div class="meta-badge">Date: <span>2026-05-19</span></div>
+            <div class="meta-badge">Status: <span>Concept / Feasibility</span></div>
+            <div class="meta-badge">Region: <span>Western Cape</span></div>
+        </div>
+    </div>
+
+    <div class="dashboard">
+
+        <!-- User Flow -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon" style="background:#1e40af33;color:#60a5fa;">&#9654;</div>
+                <h2>User Flow</h2>
+            </div>
+            <div class="card-body">
+                <div class="flow-step">
+                    <div class="step-num">1</div>
+                    <div class="step-content">
+                        <div class="step-action">User searches for project location</div>
+                        <div class="step-source">User input — limited to Western Cape</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-num">2</div>
+                    <div class="step-content">
+                        <div class="step-action">30x30km 3D landscape generates</div>
+                        <div class="step-source">30m USGS DEM (local)</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-num">3</div>
+                    <div class="step-content">
+                        <div class="step-action">Satellite imagery overlaid</div>
+                        <div class="step-source">MapTiler API</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-num">4</div>
+                    <div class="step-content">
+                        <div class="step-action">River vector data loaded</div>
+                        <div class="step-source">OSM data (local download)</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-num">5</div>
+                    <div class="step-content">
+                        <div class="step-action">Flood pooling visualises risk gradient</div>
+                        <div class="step-source">Backend algorithm</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-num">6</div>
+                    <div class="step-content">
+                        <div class="step-action">Zoom to 2x2km grid, higher-res satellite</div>
+                        <div class="step-source">MapTiler API (second call)</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-num">7</div>
+                    <div class="step-content">
+                        <div class="step-action">Project card: risk score, lat/lon, elevation</div>
+                        <div class="step-source">Calculated from DEM + flood model</div>
+                    </div>
+                </div>
+                <div class="flow-step">
+                    <div class="step-num">8</div>
+                    <div class="step-content">
+                        <div class="step-action">Automated mitigation plan generated</div>
+                        <div class="step-source">Based on risk level + river proximity</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tech Stack + Flood Gradient -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon" style="background:#7c3aed33;color:#a78bfa;">&#9881;</div>
+                <h2>Tech Stack</h2>
+            </div>
+            <div class="card-body">
+                <div class="tech-grid">
+                    <div class="tech-item">
+                        <div class="tech-label">Backend</div>
+                        <div class="tech-value">.NET MVC + MySQL</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-label">Frontend</div>
+                        <div class="tech-value">Three.js</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-label">Hosting</div>
+                        <div class="tech-value">Railway</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-label">DEM Data</div>
+                        <div class="tech-value">30m USGS / 2m GeoSmart</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-label">Satellite</div>
+                        <div class="tech-value">MapTiler API</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-label">Rivers</div>
+                        <div class="tech-value">OpenStreetMap</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-label">Flood API</div>
+                        <div class="tech-value">Google Riverine</div>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-label">3D Engine</div>
+                        <div class="tech-value">Three.js WebGL</div>
+                    </div>
+                </div>
+
+                <div style="margin-top:1.25rem;">
+                    <div style="font-size:0.75rem;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;font-weight:600;">Flood Risk Gradient</div>
+                    <div class="gradient-bar">
+                        <div class="gradient-segment" style="background:rgba(59,130,246,0.2);">Low</div>
+                        <div class="gradient-segment" style="background:rgba(59,130,246,0.45);">Medium</div>
+                        <div class="gradient-segment" style="background:rgba(37,99,235,0.7);">High</div>
+                        <div class="gradient-segment" style="background:rgba(30,64,175,0.95);">Very High</div>
+                    </div>
+                    <div class="gradient-labels">
+                        <span>Transparent Blue</span>
+                        <span>Light Blue</span>
+                        <span>Medium Blue</span>
+                        <span>Dark Blue</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Costs -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon" style="background:#22c55e33;color:#4ade80;">$</div>
+                <h2>Monthly Operating Costs</h2>
+            </div>
+            <div class="card-body">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Cost (USD/mo)</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>MapTiler API</td>
+                            <td style="color:#e2e8f0;font-weight:600;">$25</td>
+                            <td>$25/mo for commercial use</td>
+                        </tr>
+                        <tr>
+                            <td>Google Riverine API</td>
+                            <td style="color:#e2e8f0;font-weight:600;">$5 – $50</td>
+                            <td>Usage-based, scales with requests</td>
+                        </tr>
+                        <tr>
+                            <td>Claude Code</td>
+                            <td style="color:#e2e8f0;font-weight:600;">$200</td>
+                            <td>Build phase only — remove post-launch</td>
+                        </tr>
+                        <tr>
+                            <td>Railway Hosting</td>
+                            <td style="color:#e2e8f0;font-weight:600;">$5 – $20</td>
+                            <td>Pro plan, scales with usage</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="cost-total low">
+                    <span class="cost-label">Low Estimate</span>
+                    <span class="cost-amount green">$235 /mo</span>
+                </div>
+                <div class="cost-total high">
+                    <span class="cost-label">High Estimate</span>
+                    <span class="cost-amount amber">$295 /mo</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Revenue Model -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon" style="background:#f59e0b33;color:#fbbf24;">&#9733;</div>
+                <h2>Current Revenue Model</h2>
+            </div>
+            <div class="card-body">
+                <div class="revenue-single">
+                    <div class="label">ONLY REVENUE STREAM</div>
+                    <div class="stream">GeoSmart 2m High-Res DEM Upsell</div>
+                    <div class="type">One-time purchase per project</div>
+                </div>
+                <div class="revenue-warning">
+                    One revenue stream. Single trigger. No recurring income.
+                </div>
+                <div style="margin-top:1rem;font-size:0.8rem;color:#94a3b8;line-height:1.6;">
+                    Client must: be in WC &#8594; get a risk-positive result &#8594; decide to pay for higher resolution. Most users get free value and leave.
+                </div>
+            </div>
+        </div>
+
+        <!-- Flaws & Gaps -->
+        <div class="card full-width">
+            <div class="card-header">
+                <div class="card-icon" style="background:#dc262633;color:#f87171;">&#9888;</div>
+                <h2>Flaws & Gaps</h2>
+            </div>
+            <div class="card-body">
+                <div class="gap-category">Business Model</div>
+                <table>
+                    <thead>
+                        <tr><th>#</th><th>Gap</th><th>Severity</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td>Single revenue event — GeoSmart upsell is one-time per project, no recurring income</td>
+                            <td><span class="severity critical">Critical</span></td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>No charge for core product — the most valuable part (screening) is free</td>
+                            <td><span class="severity critical">Critical</span></td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>No recurring revenue model — nothing brings a client back after initial screening</td>
+                            <td><span class="severity critical">Critical</span></td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td>GeoSmart dependency — only revenue relies on third-party pricing and availability</td>
+                            <td><span class="severity high">High</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="gap-category" style="margin-top:0.5rem;">Market & Scope</div>
+                <table>
+                    <thead>
+                        <tr><th>#</th><th>Gap</th><th>Severity</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>5</td>
+                            <td>Geographic lock-in — 30m DEM only covers Western Cape, can't serve other provinces</td>
+                            <td><span class="severity high">High</span></td>
+                        </tr>
+                        <tr>
+                            <td>6</td>
+                            <td>Narrow conversion funnel — must be in WC, must get risk result, must decide to pay</td>
+                            <td><span class="severity high">High</span></td>
+                        </tr>
+                        <tr>
+                            <td>7</td>
+                            <td>Market size unknown — how many new WC projects/month need flood screening?</td>
+                            <td><span class="severity medium">Medium</span></td>
+                        </tr>
+                        <tr>
+                            <td>8</td>
+                            <td>Flood-only offering — no fire, wind, erosion, or multi-hazard screening</td>
+                            <td><span class="severity high">High</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="gap-category" style="margin-top:0.5rem;">Competitive & Regulatory</div>
+                <table>
+                    <thead>
+                        <tr><th>#</th><th>Gap</th><th>Severity</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>9</td>
+                            <td>EIA consultants already use QGIS/ArcGIS + free flood data — advantage is convenience only</td>
+                            <td><span class="severity medium">Medium</span></td>
+                        </tr>
+                        <tr>
+                            <td>10</td>
+                            <td>Output doesn't meet DFFE/DEA environmental screening report standards</td>
+                            <td><span class="severity medium">Medium</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="gap-category" style="margin-top:0.5rem;">Technical & Operational</div>
+                <table>
+                    <thead>
+                        <tr><th>#</th><th>Gap</th><th>Severity</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>11</td>
+                            <td>API dependency risk — MapTiler and Google can raise prices or change terms</td>
+                            <td><span class="severity medium">Medium</span></td>
+                        </tr>
+                        <tr>
+                            <td>12</td>
+                            <td>No user retention — no accounts, saved projects, dashboards, or alerts</td>
+                            <td><span class="severity high">High</span></td>
+                        </tr>
+                        <tr>
+                            <td>13</td>
+                            <td>Claude Code $200/mo is build-phase only — not permanent operational cost</td>
+                            <td><span class="severity low">Low</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Viability Levers -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon" style="background:#22c55e33;color:#4ade80;">&#10003;</div>
+                <h2>What Would Make It Viable</h2>
+            </div>
+            <div class="card-body">
+                <div class="lever-item">
+                    <span class="lever-type transaction">Per-Transaction</span>
+                    <span class="lever-desc">Charge R500–R1,000 per screening</span>
+                </div>
+                <div class="lever-item">
+                    <span class="lever-type recurring">Recurring</span>
+                    <span class="lever-desc">Subscription per site for ongoing monitoring</span>
+                </div>
+                <div class="lever-item">
+                    <span class="lever-type premium">Premium</span>
+                    <span class="lever-desc">Multi-hazard: fire, wind, erosion</span>
+                </div>
+                <div class="lever-item">
+                    <span class="lever-type premium">Premium</span>
+                    <span class="lever-desc">DFFE/DEA compliant report output</span>
+                </div>
+                <div class="lever-item">
+                    <span class="lever-type expansion">Expansion</span>
+                    <span class="lever-desc">Geographic expansion to more provinces</span>
+                </div>
+                <div class="lever-item">
+                    <span class="lever-type recurring">B2B Recurring</span>
+                    <span class="lever-desc">White-label for EIA consulting firms</span>
+                </div>
+                <div class="lever-item">
+                    <span class="lever-type recurring">Recurring</span>
+                    <span class="lever-desc">Continuous climate monitoring for solar farms</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Next Steps -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-icon" style="background:#6366f133;color:#818cf8;">&#8594;</div>
+                <h2>Next Steps</h2>
+            </div>
+            <div class="card-body">
+                <ul class="step-list">
+                    <li><div class="checkbox"></div>Define target customer (solar devs? EIA consultants? municipal planners?)</li>
+                    <li><div class="checkbox"></div>Research WC project volume per month</li>
+                    <li><div class="checkbox"></div>Price the GeoSmart upsell (what do they charge per area?)</li>
+                    <li><div class="checkbox"></div>Model break-even: paid screenings/month to cover $235–295</li>
+                    <li><div class="checkbox"></div>Investigate DFFE/DEA report format requirements</li>
+                    <li><div class="checkbox"></div>Explore multi-hazard data sources (fire, wind, erosion)</li>
+                    <li><div class="checkbox"></div>Talk to 3–5 potential users about willingness to pay</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Key Takeaway -->
+        <div class="card full-width">
+            <div class="card-header">
+                <div class="card-icon" style="background:#6366f133;color:#818cf8;">&#9679;</div>
+                <h2>Key Takeaway</h2>
+            </div>
+            <div class="card-body">
+                <div class="takeaway">
+                    The <strong>tech demo is strong</strong> — 3D landscape generation, satellite overlay, flood risk gradient, and automated mitigation planning is genuinely impressive and useful. The gap is <strong>not the product — it's the business model</strong>. A free tool with a single third-party upsell won't cover its own costs. The screening itself must generate revenue — either <strong>per-use, per-subscription, or through regulatory-compliant reporting</strong> that consultants will pay for.
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
