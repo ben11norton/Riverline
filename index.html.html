@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Riverline — Riverine Flood Screening</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{
+    --paper:#ffffff;
+    --paper-soft:#f7f8f9;
+    --ink:#12161a;
+    --ink-soft:#5b6470;
+    --ink-faint:#8a929c;
+    --line:#e3e6e9;
+    --line-strong:#cfd4d9;
+    --accent:#1f2326;
+    --accent-soft:#eef0f1;
+    --radius:10px;
+    --radius-lg:14px;
+    --low:#707070;
+    --moderate:#595959;
+    --high:#404040;
+    --severe:#1a1a1a;
+    --neutral:#707070;
+    --font-display:'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+    --font-body:'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-mono:'IBM Plex Mono', ui-monospace, SFMono-Regular, monospace;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+  }
+  a{ color:var(--accent); }
+
+  :focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:2px;
+    border-radius:4px;
+  }
+
+  .wrap{
+    max-width:1080px;
+    margin:0 auto;
+    padding:48px 24px 80px;
+  }
+
+  /* ---------- Header ---------- */
+  header.top{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom:56px;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .wordmark{
+    font-family:var(--font-display);
+    font-weight:700;
+    font-size:20px;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    color:var(--ink);
+  }
+  .wordmark span{ color:var(--accent); }
+  .tagline{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+
+  /* ---------- Search ---------- */
+  .search-zone{
+    max-width:640px;
+    margin:0 auto 12px;
+  }
+  .search-box{
+    position:relative;
+    z-index: 2000;
+  }
+  .search-input-row{
+    display:flex;
+    align-items:center;
+    border:1px solid var(--line-strong);
+    border-radius:var(--radius);
+    background:var(--paper);
+    transition:border-color .15s ease;
+    padding-right:4px;
+  }
+  .search-input-row:focus-within{
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft);
+  }
+  .search-input-row input{
+    flex:1;
+    border:none;
+    background:transparent;
+    font-family:var(--font-body);
+    font-size:16px;
+    color:var(--ink);
+    padding:16px 4px 16px 18px;
+    outline:none;
+  }
+  .search-input-row input::placeholder{ color:var(--ink-faint); }
+  .search-icon-btn{
+    border:none;
+    background:transparent;
+    color:var(--ink-faint);
+    width:40px;
+    height:40px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:default;
+  }
+
+  .suggestions{
+    position:absolute;
+    top:calc(100% + 8px);
+    left:0; right:0;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:0 12px 28px rgba(18,22,26,0.07);
+    overflow:hidden;
+    z-index:30;
+    max-height:320px;
+    overflow-y:auto;
+  }
+  .suggestions[hidden]{ display:none; }
+  .suggestion{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    padding:11px 16px;
+    cursor:pointer;
+    border-bottom:1px solid var(--line);
+  }
+  .suggestion:last-child{ border-bottom:none; }
+  .suggestion:hover, .suggestion.is-active{
+    background:var(--accent-soft);
+  }
+  .suggestion .primary{ font-size:14px; color:var(--ink); font-weight:500; }
+  .suggestion .secondary{ font-size:12px; color:var(--ink-faint); }
+
+  .examples{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    justify-content:center;
+    margin-top:16px;
+  }
+  .example-chip{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    letter-spacing:0.02em;
+    color:var(--ink-soft);
+    background:var(--paper-soft);
+    border:1px solid var(--line);
+    border-radius:999px;
+    padding:6px 12px;
+    cursor:pointer;
+  }
+  .example-chip:hover{ border-color:var(--accent); color:var(--accent); }
+
+  .search-hint{
+    text-align:center;
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    color:var(--ink-faint);
+    margin-top:18px;
+    letter-spacing:0.02em;
+  }
+
+  /* ---------- Empty state ---------- */
+  .empty-state{
+    margin-top:96px;
+    text-align:center;
+    color:var(--ink-faint);
+  }
+  .empty-state .glyph{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+  }
+
+  /* ---------- Results panel ---------- */
+  .panel{
+    margin-top:40px;
+    display:grid;
+    grid-template-columns:1.05fr 1fr;
+    gap:24px;
+    align-items:stretch;
+  }
+  .panel[hidden]{ display:none; }
+  @media (max-width: 760px){
+    .panel{ grid-template-columns:1fr; }
+  }
+
+  .map-frame{
+    border:1px solid var(--line);
+    border-radius:var(--radius-lg);
+    overflow:hidden;
+    min-height:420px;
+    position:relative;
+  }
+  #map{ width:100%; height:100%; min-height:420px; }
+  @media (max-width:760px){
+    .map-frame, #map{ min-height:280px; }
+  }
+
+  .leaflet-control-attribution{
+    font-family:var(--font-mono) !important;
+    font-size:9.5px !important;
+  }
+  .leaflet-control-zoom a{
+    border-radius:0 !important;
+    color:var(--ink) !important;
+  }
+
+  .result-card{
+    border:1px solid var(--line);
+    border-radius:var(--radius-lg);
+    padding:28px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+    min-height:420px;
+  }
+
+  .place-block .place-name{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:20px;
+    line-height:1.25;
+  }
+  .place-block .coords{
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--ink-faint);
+    margin-top:4px;
+  }
+
+  .risk-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .risk-pill{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    font-weight:600;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:#fff;
+    border-radius:999px;
+    padding:6px 14px;
+    white-space:nowrap;
+  }
+  .risk-pill.low{ background:var(--low); }
+  .risk-pill.moderate{ background:var(--moderate); }
+  .risk-pill.high{ background:var(--high); }
+  .risk-pill.severe{ background:var(--severe); }
+  .risk-pill.limited, .risk-pill.no-data{ background:var(--neutral); }
+  .risk-marks{ letter-spacing:0.06em; opacity:0.9; margin-right:2px; }
+
+  .risk-summary{
+    font-size:14.5px;
+    color:var(--ink);
+    line-height:1.55;
+  }
+
+  .sparkline-wrap{
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    padding:14px 0 6px;
+  }
+  .sparkline-wrap svg{ display:block; width:100%; height:auto; }
+  .spark-legend{
+    display:flex;
+    justify-content:space-between;
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    color:var(--ink-faint);
+    margin-top:6px;
+    letter-spacing:0.02em;
+  }
+
+  .data-rows{
+    display:flex;
+    flex-direction:column;
+    gap:9px;
+  }
+  .data-row{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    font-size:13px;
+  }
+  .data-row .k{ color:var(--ink-soft); }
+  .data-row .v{
+    font-family:var(--font-mono);
+    color:var(--ink);
+    text-align:right;
+  }
+
+  .disclaimer{
+    margin-top:auto;
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    color:var(--ink-faint);
+    line-height:1.6;
+    padding-top:10px;
+    border-top:1px solid var(--line);
+  }
+
+  .skeleton-line{
+    height:10px;
+    border-radius:4px;
+    background:linear-gradient(90deg, var(--paper-soft) 25%, var(--line) 37%, var(--paper-soft) 63%);
+    background-size:400% 100%;
+    animation:shimmer 1.4s ease infinite;
+  }
+  @keyframes shimmer{
+    0%{ background-position:100% 0; }
+    100%{ background-position:0 0; }
+  }
+  .loading-caption{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--ink-faint);
+    letter-spacing:0.04em;
+  }
+
+  .pulse-dot{
+    animation:pulse 1.6s ease-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce){
+    .pulse-dot{ animation:none; }
+    .skeleton-line{ animation:none; }
+    .draw-line{ stroke-dasharray:none !important; }
+  }
+  @keyframes pulse{
+    0%{ opacity:0.55; r:5; }
+    70%{ opacity:0; r:13; }
+    100%{ opacity:0; r:13; }
+  }
+
+  .marker-dot{
+    width:14px; height:14px;
+    border-radius:50%;
+    background:var(--accent);
+    border:2px solid #fff;
+    box-shadow:0 0 0 2px var(--accent);
+  }
+
+  .error-box{
+    border:1px solid var(--line);
+    border-radius:var(--radius-lg);
+    padding:24px;
+    font-size:14px;
+    color:var(--ink-soft);
+  }
+  .error-box strong{ color:var(--ink); display:block; margin-bottom:4px; font-family:var(--font-display); }
+
+  footer.site{
+    margin-top:64px;
+    text-align:center;
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    color:var(--ink-faint);
+  }
+  footer.site a{ color:var(--ink-faint); text-decoration:underline; }
+
+  .sr-only{
+    position:absolute;
+    width:1px; height:1px;
+    overflow:hidden;
+    clip:rect(0,0,0,0);
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <div class="wordmark">River<span>line</span></div>
+      <div class="tagline">Riverine flood screening</div>
+    </div>
+  </header>
+
+  <div class="search-zone">
+    <div class="search-box">
+      <div class="search-input-row">
+        <input
+          id="searchInput"
+          type="text"
+          placeholder="Search a place — town, address, or landmark"
+          autocomplete="off"
+          role="combobox"
+          aria-expanded="false"
+          aria-controls="suggestions"
+          aria-autocomplete="list"
+        />
+        <button class="search-icon-btn" tabindex="-1" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <div id="suggestions" class="suggestions" role="listbox" hidden></div>
+    </div>
+
+    <div class="examples" id="examples">
+      <span class="example-chip" data-q="Upington, South Africa">Upington, South Africa</span>
+      <span class="example-chip" data-q="Durban, South Africa">Durban, South Africa</span>
+      <span class="example-chip" data-q="Jakarta, Indonesia">Jakarta, Indonesia</span>
+      <span class="example-chip" data-q="New Orleans, USA">New Orleans, USA</span>
+    </div>
+
+    <div class="search-hint">Live river discharge vs. 10-year history · Copernicus GloFAS</div>
+  </div>
+
+  <div id="emptyState" class="empty-state">
+    <div class="glyph">— Awaiting location —</div>
+  </div>
+
+  <div id="panel" class="panel" hidden>
+    <div class="map-frame">
+      <div id="map"></div>
+    </div>
+    <div id="resultCard" class="result-card"></div>
+  </div>
+
+  <footer class="site">
+    Geocoding via OpenStreetMap Nominatim · Map tiles via CARTO &amp; OpenStreetMap contributors · Flood data via Open&#8209;Meteo (Copernicus GloFAS)
+  </footer>
+</div>
+
+<div id="liveRegion" class="sr-only" aria-live="polite"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+
+  /* ---------------- small helpers ---------------- */
+  function $(id){ return document.getElementById(id); }
+  function debounce(fn, ms){
+    let t;
+    return function(...args){
+      clearTimeout(t);
+      t = setTimeout(()=>fn.apply(this,args), ms);
+    };
+  }
+  function haversineKm(lat1, lon1, lat2, lon2){
+    const R = 6371;
+    const dLat = (lat2-lat1) * Math.PI/180;
+    const dLon = (lon2-lon1) * Math.PI/180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+  function fmt(n, d){
+    if(n===null || n===undefined || isNaN(n)) return '—';
+    return Number(n).toLocaleString(undefined, {minimumFractionDigits:d, maximumFractionDigits:d});
+  }
+  function isoDate(d){ return d.toISOString().slice(0,10); }
+  function setLive(msg){ $('liveRegion').textContent = msg; }
+
+  /* ---------------- state ---------------- */
+  let map = null;
+  let marker = null;
+  let mapInitialized = false;
+  let activeRequestId = 0;
+  let activeIndex = -1;
+  let currentSuggestions = [];
+
+  /* ---------------- geocoding (Nominatim) ---------------- */
+  const input = $('searchInput');
+  const suggBox = $('suggestions');
+
+  const runSearch = debounce(async function(q){
+    if(q.trim().length < 3){
+      hideSuggestions();
+      return;
+    }
+    try{
+      const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=0&limit=6&q=' + encodeURIComponent(q);
+      const res = await fetch(url, { headers: { 'Accept':'application/json' } });
+      if(!res.ok) throw new Error('geocode failed');
+      const data = await res.json();
+      renderSuggestions(data);
+    }catch(err){
+      hideSuggestions();
+    }
+  }, 380);
+
+  input.addEventListener('input', (e)=> runSearch(e.target.value));
+
+  input.addEventListener('keydown', (e)=>{
+    if(suggBox.hidden) return;
+    const items = Array.from(suggBox.querySelectorAll('.suggestion'));
+    if(e.key === 'ArrowDown'){
+      e.preventDefault();
+      activeIndex = Math.min(activeIndex+1, items.length-1);
+      highlight(items);
+    }else if(e.key === 'ArrowUp'){
+      e.preventDefault();
+      activeIndex = Math.max(activeIndex-1, 0);
+      highlight(items);
+    }else if(e.key === 'Enter'){
+      e.preventDefault();
+      const idx = activeIndex >= 0 ? activeIndex : 0;
+      if(currentSuggestions[idx]) selectPlace(currentSuggestions[idx]);
+    }else if(e.key === 'Escape'){
+      hideSuggestions();
+    }
+  });
+
+  document.addEventListener('click', (e)=>{
+    if(!e.target.closest('.search-box')) hideSuggestions();
+  });
+
+  function highlight(items){
+    items.forEach((el,i)=> el.classList.toggle('is-active', i===activeIndex));
+    if(items[activeIndex]){
+      items[activeIndex].scrollIntoView({block:'nearest'});
+      input.setAttribute('aria-activedescendant', items[activeIndex].id);
+    }
+  }
+
+  function hideSuggestions(){
+    suggBox.hidden = true;
+    suggBox.innerHTML = '';
+    activeIndex = -1;
+    input.setAttribute('aria-expanded','false');
+    input.removeAttribute('aria-activedescendant');
+  }
+
+  function renderSuggestions(results){
+    currentSuggestions = results;
+    activeIndex = -1;
+    suggBox.innerHTML = '';
+    if(!results.length){ hideSuggestions(); return; }
+
+    results.forEach((r, i)=>{
+      const item = document.createElement('div');
+      item.className = 'suggestion';
+      item.id = 'sugg-' + i;
+      item.setAttribute('role','option');
+
+      const primary = document.createElement('div');
+      primary.className = 'primary';
+      const parts = r.display_name.split(',');
+      primary.textContent = parts[0].trim();
+
+      const secondary = document.createElement('div');
+      secondary.className = 'secondary';
+      secondary.textContent = parts.slice(1).join(',').trim();
+
+      item.appendChild(primary);
+      item.appendChild(secondary);
+      item.addEventListener('mousedown', (ev)=>{ ev.preventDefault(); selectPlace(r); });
+      suggBox.appendChild(item);
+    });
+
+    suggBox.hidden = false;
+    input.setAttribute('aria-expanded','true');
+  }
+
+  function selectPlace(r){
+    const label = r.display_name.split(',')[0].trim();
+    input.value = r.display_name;
+    hideSuggestions();
+    runScreening(parseFloat(r.lat), parseFloat(r.lon), label, r.display_name);
+  }
+
+  /* ---------------- example chips ---------------- */
+  $('examples').addEventListener('click', async (e)=>{
+    const chip = e.target.closest('.example-chip');
+    if(!chip) return;
+    const q = chip.dataset.q;
+    input.value = q;
+    try{
+      const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=' + encodeURIComponent(q);
+      const res = await fetch(url);
+      const data = await res.json();
+      if(data && data[0]) selectPlace(data[0]);
+    }catch(err){ /* silent */ }
+  });
+
+  /* ---------------- map ---------------- */
+  function ensureMap(lat, lon){
+    if(!mapInitialized){
+      map = L.map('map', { zoomControl:true, attributionControl:true }).setView([lat,lon], 10);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution:'&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom:18
+      }).addTo(map);
+      mapInitialized = true;
+    }else{
+      map.setView([lat,lon], 10);
+    }
+    const icon = L.divIcon({ className:'', html:'<div class="marker-dot"></div>', iconSize:[14,14] });
+    if(marker) marker.remove();
+    marker = L.marker([lat,lon], { icon }).addTo(map);
+  }
+
+  /* ---------------- flood risk classification ---------------- */
+  function classify(percentile, sampleSize){
+    if(sampleSize === 0){
+      return { tier:'no-data', label:'No river modeled', marks:'– – – –' };
+    }
+    if(sampleSize < 60){
+      return { tier:'limited', label:'Limited data', marks:'· · · ·' };
+    }
+    if(percentile >= 95) return { tier:'severe', label:'Severe', marks:'■ ■ ■ ■' };
+    if(percentile >= 75) return { tier:'high', label:'High', marks:'■ ■ ■ □' };
+    if(percentile >= 50) return { tier:'moderate', label:'Moderate', marks:'■ ■ □ □' };
+    return { tier:'low', label:'Low', marks:'■ □ □ □' };
+  }
+
+  function summaryFor(tier, percentile, years){
+    switch(tier){
+      case 'severe':
+        return `Today's modeled flow sits at the ${Math.round(percentile)}th percentile of the past ${years} years — at or beyond the highest levels typically recorded for this river. Riverine flood risk is elevated right now.`;
+      case 'high':
+        return `Today's modeled flow sits at the ${Math.round(percentile)}th percentile of the past ${years} years — approaching levels rarely seen for this river. Worth monitoring closely.`;
+      case 'moderate':
+        return `Today's modeled flow sits at the ${Math.round(percentile)}th percentile of the past ${years} years — above typical levels, but within normal seasonal variability.`;
+      case 'low':
+        return `Today's modeled flow sits at the ${Math.round(percentile)}th percentile of the past ${years} years — at or below typical levels for this river.`;
+      case 'limited':
+        return `Only a short history is available for this exact grid cell, too little for a reliable comparison against past extremes.`;
+      default:
+        return `No riverine discharge is modeled at this exact point. You may be off the main channel, or in an area too flat or dry for GloFAS to resolve a river at 5 km resolution.`;
+    }
+  }
+
+  /* ---------------- sparkline (signature element) ---------------- */
+  function buildSparkline(dates, values, todayStr, median){
+    const W = 600, H = 150, padL = 8, padR = 8, padT = 14, padB = 18;
+    const plotW = W - padL - padR, plotH = H - padT - padB;
+    const valid = values.filter(v=>v!==null && v!==undefined);
+    const min = Math.min(...valid, median);
+    const max = Math.max(...valid, median);
+    const range = (max-min) || 1;
+
+    function xAt(i){ return padL + (i/(values.length-1)) * plotW; }
+    function yAt(v){ return padT + (1 - (v-min)/range) * plotH; }
+
+    let todayIdx = -1;
+    dates.forEach((d,i)=>{ if(d === todayStr) todayIdx = i; });
+    if(todayIdx === -1) todayIdx = dates.length-1;
+
+    let solidPts = [], forecastPts = [];
+    for(let i=0;i<values.length;i++){
+      if(values[i]===null || values[i]===undefined) continue;
+      const pt = `${xAt(i).toFixed(1)},${yAt(values[i]).toFixed(1)}`;
+      if(i<=todayIdx) solidPts.push(pt); else forecastPts.push(pt);
+    }
+    if(forecastPts.length){
+      const lastSolid = solidPts[solidPts.length-1];
+      forecastPts = [lastSolid, ...forecastPts];
+    }
+
+    const medianY = yAt(median).toFixed(1);
+    const todayX = xAt(todayIdx).toFixed(1);
+    const todayY = values[todayIdx]!=null ? yAt(values[todayIdx]).toFixed(1) : null;
+
+    const areaPts = solidPts.length ? `${padL},${(padT+plotH).toFixed(1)} ${solidPts.join(' ')} ${xAt(Math.min(todayIdx,values.length-1)).toFixed(1)},${(padT+plotH).toFixed(1)}` : '';
+
+    return `
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="River discharge over time, recent history and short forecast">
+      <polygon points="${areaPts}" fill="${'var(--accent-soft)'}" opacity="0.6"></polygon>
+      <line x1="${padL}" y1="${medianY}" x2="${W-padR}" y2="${medianY}" stroke="var(--line-strong)" stroke-width="1" stroke-dasharray="3,3"></line>
+      <polyline points="${solidPts.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" class="draw-line"></polyline>
+      ${forecastPts.length ? `<polyline points="${forecastPts.join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-dasharray="4,4" stroke-linecap="round"></polyline>` : ''}
+      <line x1="${todayX}" y1="${padT}" x2="${todayX}" y2="${padT+plotH}" stroke="var(--ink-faint)" stroke-width="1" stroke-dasharray="2,3"></line>
+      ${todayY ? `<circle class="pulse-dot" cx="${todayX}" cy="${todayY}" r="5" fill="var(--accent)" opacity="0.35"></circle><circle cx="${todayX}" cy="${todayY}" r="4" fill="var(--accent)" stroke="#fff" stroke-width="1.5"></circle>` : ''}
+    </svg>`;
+  }
+
+  /* ---------------- nearest named river (Overpass, best-effort) ---------------- */
+  async function fetchNearestRiver(lat, lon, signal){
+    const query = `[out:json][timeout:10];way["waterway"~"^(river|stream)$"]["name"](around:4000,${lat},${lon});out center 6;`;
+    const url = 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query);
+    const res = await fetch(url, { signal });
+    if(!res.ok) throw new Error('overpass failed');
+    const data = await res.json();
+    if(!data.elements || !data.elements.length) return null;
+    let best = null, bestDist = Infinity;
+    data.elements.forEach(el=>{
+      if(!el.center || !el.tags || !el.tags.name) return;
+      const d = haversineKm(lat, lon, el.center.lat, el.center.lon);
+      if(d < bestDist){ bestDist = d; best = { name: el.tags.name, distanceKm: d }; }
+    });
+    return best;
+  }
+
+  /* ---------------- main screening flow ---------------- */
+  async function runScreening(lat, lon, label, fullName){
+    const reqId = ++activeRequestId;
+
+    $('emptyState').style.display = 'none';
+    $('panel').hidden = false;
+    ensureMap(lat, lon);
+    renderLoading(label, lat, lon);
+    setLive(`Reading river gauge data for ${label}.`);
+
+    const today = new Date();
+    const start = new Date(today); start.setFullYear(start.getFullYear()-10);
+    const end = new Date(today); end.setDate(end.getDate()+7);
+    const startStr = isoDate(start), endStr = isoDate(end), todayStr = isoDate(today);
+
+    let floodData;
+    try{
+      const url = `https://flood-api.open-meteo.com/v1/flood?latitude=${lat}&longitude=${lon}&daily=river_discharge&start_date=${startStr}&end_date=${endStr}`;
+      const res = await fetch(url);
+      if(!res.ok) throw new Error('flood api error');
+      floodData = await res.json();
+      if(floodData.error) throw new Error(floodData.reason || 'flood api error');
+    }catch(err){
+      if(reqId !== activeRequestId) return;
+      renderError(label);
+      return;
+    }
+    if(reqId !== activeRequestId) return;
+
+    const times = (floodData.daily && floodData.daily.time) || [];
+    const values = (floodData.daily && floodData.daily.river_discharge) || [];
+    const gridLat = floodData.latitude, gridLon = floodData.longitude;
+
+    // historical pool: dated <= today, non-null
+    const histValues = [];
+    let currentValue = null, currentDate = null;
+    for(let i=0;i<times.length;i++){
+      if(times[i] <= todayStr && values[i]!==null && values[i]!==undefined){
+        histValues.push(values[i]);
+        currentValue = values[i];
+        currentDate = times[i];
+      }
+    }
+
+    const sampleSize = histValues.length;
+    let percentile = 0, median = 0;
+    if(sampleSize > 0){
+      const sorted = [...histValues].sort((a,b)=>a-b);
+      median = sorted[Math.floor(sorted.length/2)];
+      const countBelowOrEqual = sorted.filter(v=>v<=currentValue).length;
+      percentile = (countBelowOrEqual / sorted.length) * 100;
+    }
+
+    const { tier, label: tierLabel, marks } = classify(percentile, sampleSize);
+    const years = 10;
+    const summary = summaryFor(tier, percentile, years);
+
+    const gridDistance = haversineKm(lat, lon, gridLat, gridLon);
+
+    renderResult({
+      label, fullName, lat, lon,
+      tier, tierLabel, marks, summary,
+      currentValue, currentDate, median, percentile, sampleSize,
+      times, values, todayStr,
+      gridLat, gridLon, gridDistance
+    });
+
+    setLive(`${tierLabel} riverine flood risk for ${label}. ${summary}`);
+
+    // best-effort nearest named river, non-blocking
+    if(sampleSize > 0){
+      try{
+        const river = await fetchNearestRiver(gridLat, gridLon);
+        if(reqId === activeRequestId && river){
+          const rowEl = $('riverRow');
+          if(rowEl) rowEl.querySelector('.v').textContent = `${river.name} · ${fmt(river.distanceKm,1)} km`;
+        }
+      }catch(err){ /* silent — supplementary only */ }
+    }
+  }
+
+  /* ---------------- rendering ---------------- */
+  function renderLoading(label, lat, lon){
+    const card = $('resultCard');
+    card.innerHTML = `
+      <div class="place-block">
+        <div class="place-name">${escapeText(label)}</div>
+        <div class="coords">${lat.toFixed(4)}, ${lon.toFixed(4)}</div>
+      </div>
+      <div class="loading-caption">Reading gauge…</div>
+      <div class="skeleton-line" style="width:40%"></div>
+      <div class="skeleton-line" style="width:90%; height:90px; border-radius:8px;"></div>
+      <div class="skeleton-line" style="width:70%"></div>
+      <div class="skeleton-line" style="width:55%"></div>
+    `;
+  }
+
+  function escapeText(s){
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function renderError(label){
+    const card = $('resultCard');
+    card.innerHTML = `
+      <div class="error-box">
+        <strong>Couldn't reach the flood gauge</strong>
+        Open-Meteo's flood data didn't respond for ${escapeText(label)}. This is usually temporary — try the search again in a moment.
+      </div>
+    `;
+  }
+
+  function renderResult(d){
+    const card = $('resultCard');
+    const recentWindow = 150;
+    const startIdx = Math.max(0, d.times.indexOf(d.currentDate) - recentWindow);
+    const dispTimes = d.times.slice(startIdx);
+    const dispValues = d.values.slice(startIdx);
+
+    const sparkSvg = d.sampleSize > 0
+      ? buildSparkline(dispTimes, dispValues, d.todayStr, d.median)
+      : '';
+
+    card.innerHTML = `
+      <div class="place-block">
+        <div class="place-name">${escapeText(d.label)}</div>
+        <div class="coords">${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}</div>
+      </div>
+
+      <div class="risk-row">
+        <span class="risk-pill ${d.tier}"><span class="risk-marks">${d.marks}</span> ${d.tierLabel} risk</span>
+      </div>
+
+      <div class="risk-summary">${escapeText(d.summary)}</div>
+
+      ${sparkSvg ? `
+      <div class="sparkline-wrap">
+        ${sparkSvg}
+        <div class="spark-legend">
+          <span>~5 months ago</span>
+          <span>today</span>
+          <span>+7d forecast</span>
+        </div>
+      </div>` : ''}
+
+      <div class="data-rows">
+        ${d.sampleSize > 0 ? `
+        <div class="data-row"><span class="k">Current discharge</span><span class="v">${fmt(d.currentValue,1)} m&sup3;/s</span></div>
+        <div class="data-row"><span class="k">10-yr median discharge</span><span class="v">${fmt(d.median,1)} m&sup3;/s</span></div>
+        <div class="data-row"><span class="k">Percentile rank</span><span class="v">${Math.round(d.percentile)}th</span></div>
+        <div class="data-row" id="riverRow"><span class="k">Nearest mapped river</span><span class="v">Looking…</span></div>
+        <div class="data-row"><span class="k">Model grid offset</span><span class="v">${fmt(d.gridDistance,1)} km</span></div>
+        ` : `
+        <div class="data-row"><span class="k">Model grid offset</span><span class="v">${fmt(d.gridDistance,1)} km</span></div>
+        `}
+      </div>
+
+      <div class="disclaimer">
+        Screening signal only, not a certified flood survey. Derived from Copernicus GloFAS river discharge at 5&nbsp;km resolution — the modeled channel can sit a few kilometres from the exact pin. Risk tier compares today's modeled flow to this location's own 10-year history.
+      </div>
+    `;
+  }
+
+})();
+</script>
+</body>
+</html>
