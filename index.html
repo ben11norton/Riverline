@@ -64,9 +64,19 @@
   }
 
   .wrap{
-    max-width:1080px;
+    max-width:1440px;
     margin:0 auto;
-    padding:48px 24px 80px;
+    padding:48px 24px 0;
+  }
+  .wrap-panel{
+    max-width:1440px;
+    margin:0 auto;
+    padding:0 24px;
+  }
+  .wrap-foot{
+    max-width:1440px;
+    margin:0 auto;
+    padding:0 24px 80px;
   }
 
   /* ---------- Header ---------- */
@@ -169,34 +179,6 @@
   .suggestion .primary{ font-size:14px; color:var(--ink); font-weight:500; }
   .suggestion .secondary{ font-size:12px; color:var(--ink-faint); }
 
-  .examples{
-    display:flex;
-    flex-wrap:wrap;
-    gap:8px;
-    justify-content:center;
-    margin-top:16px;
-  }
-  .example-chip{
-    font-family:var(--font-mono);
-    font-size:11.5px;
-    letter-spacing:0.02em;
-    color:var(--ink-soft);
-    background:var(--paper-soft);
-    border:1px solid var(--line);
-    border-radius:999px;
-    padding:6px 12px;
-    cursor:pointer;
-  }
-  .example-chip:hover{ border-color:var(--accent); color:var(--accent); }
-
-  .search-hint{
-    text-align:center;
-    font-family:var(--font-mono);
-    font-size:11.5px;
-    color:var(--ink-faint);
-    margin-top:18px;
-    letter-spacing:0.02em;
-  }
 
   /* ---------- Empty state ---------- */
   .empty-state{
@@ -215,13 +197,22 @@
   .panel{
     margin-top:40px;
     display:grid;
-    grid-template-columns:1.05fr 1fr;
+    grid-template-columns:1fr 1.1fr 1fr;
     gap:24px;
     align-items:stretch;
   }
   .panel[hidden]{ display:none; }
+  #resultCard{ order:1; }
+  .map-frame{ order:2; }
+  #susceptibilityCard{ order:3; }
+  @media (max-width: 980px){
+    .panel{ grid-template-columns:1.05fr 1fr; }
+    #resultCard, .map-frame, #susceptibilityCard{ order:0; }
+    #susceptibilityCard{ grid-column:1 / -1; }
+  }
   @media (max-width: 760px){
     .panel{ grid-template-columns:1fr; }
+    #susceptibilityCard{ grid-column:auto; }
   }
 
   .map-frame{
@@ -342,6 +333,15 @@
     border-top:1px solid var(--line);
   }
 
+  .risk-group{ display:flex; flex-direction:column; gap:6px; }
+  .risk-caption{
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+
   .skeleton-line{
     height:10px;
     border-radius:4px;
@@ -438,28 +438,25 @@
       </div>
       <div id="suggestions" class="suggestions" role="listbox" hidden></div>
     </div>
-
-    <div class="examples" id="examples">
-      <span class="example-chip" data-q="Upington, South Africa">Upington, South Africa</span>
-      <span class="example-chip" data-q="Durban, South Africa">Durban, South Africa</span>
-      <span class="example-chip" data-q="Jakarta, Indonesia">Jakarta, Indonesia</span>
-      <span class="example-chip" data-q="New Orleans, USA">New Orleans, USA</span>
-    </div>
-
-    <div class="search-hint">Live river discharge vs. 10-year history · Copernicus GloFAS</div>
   </div>
 
   <div id="emptyState" class="empty-state">
     <div class="glyph">— Awaiting location —</div>
   </div>
 
+</div>
+
+<div class="wrap-panel">
   <div id="panel" class="panel" hidden>
     <div class="map-frame">
       <div id="map"></div>
     </div>
     <div id="resultCard" class="result-card"></div>
+    <div id="susceptibilityCard" class="result-card"></div>
   </div>
+</div>
 
+<div class="wrap-foot">
   <footer class="site">
     Geocoding via OpenStreetMap Nominatim · Map tiles via CARTO &amp; OpenStreetMap contributors · Flood data via Open&#8209;Meteo (Copernicus GloFAS)
   </footer>
@@ -493,6 +490,7 @@
   }
   function isoDate(d){ return d.toISOString().slice(0,10); }
   function setLive(msg){ $('liveRegion').textContent = msg; }
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
 
   /* ---------------- state ---------------- */
   let map = null;
@@ -602,20 +600,6 @@
     runScreening(parseFloat(r.lat), parseFloat(r.lon), label, r.display_name);
   }
 
-  /* ---------------- example chips ---------------- */
-  $('examples').addEventListener('click', async (e)=>{
-    const chip = e.target.closest('.example-chip');
-    if(!chip) return;
-    const q = chip.dataset.q;
-    input.value = q;
-    try{
-      const url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=' + encodeURIComponent(q);
-      const res = await fetch(url);
-      const data = await res.json();
-      if(data && data[0]) selectPlace(data[0]);
-    }catch(err){ /* silent */ }
-  });
-
   /* ---------------- map ---------------- */
   function ensureMap(lat, lon){
     if(!mapInitialized){
@@ -631,6 +615,11 @@
     const icon = L.divIcon({ className:'', html:'<div class="marker-dot"></div>', iconSize:[14,14] });
     if(marker) marker.remove();
     marker = L.marker([lat,lon], { icon }).addTo(map);
+  }
+
+  function resizeMap(){
+    if(!map) return;
+    requestAnimationFrame(()=> map.invalidateSize());
   }
 
   /* ---------------- flood risk classification ---------------- */
@@ -708,13 +697,35 @@
     </svg>`;
   }
 
-  /* ---------------- nearest named river (Overpass, best-effort) ---------------- */
-  async function fetchNearestRiver(lat, lon, signal){
+  /* ---------------- Overpass, with mirror fallback (the public main instance frequently times out under load) ---------------- */
+  const OVERPASS_ENDPOINTS = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.openstreetmap.ru/api/interpreter'
+  ];
+
+  async function fetchOverpassJson(query){
+    let lastErr;
+    for(const endpoint of OVERPASS_ENDPOINTS){
+      const controller = new AbortController();
+      const timer = setTimeout(()=>controller.abort(), 8000);
+      try{
+        const res = await fetch(endpoint + '?data=' + encodeURIComponent(query), { signal: controller.signal });
+        if(!res.ok) throw new Error('overpass ' + res.status);
+        return await res.json();
+      }catch(err){
+        lastErr = err;
+      }finally{
+        clearTimeout(timer);
+      }
+    }
+    throw lastErr || new Error('overpass unavailable');
+  }
+
+  /* ---------------- nearest named river (best-effort) ---------------- */
+  async function fetchNearestRiver(lat, lon){
     const query = `[out:json][timeout:10];way["waterway"~"^(river|stream)$"]["name"](around:4000,${lat},${lon});out center 6;`;
-    const url = 'https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query);
-    const res = await fetch(url, { signal });
-    if(!res.ok) throw new Error('overpass failed');
-    const data = await res.json();
+    const data = await fetchOverpassJson(query);
     if(!data.elements || !data.elements.length) return null;
     let best = null, bestDist = Infinity;
     data.elements.forEach(el=>{
@@ -725,6 +736,144 @@
     return best;
   }
 
+  /* ---------------- flood susceptibility engine (static, geography-driven) ---------------- */
+  const SUSCEPTIBILITY_WEIGHTS = { river:0.25, rainfall:0.20, terrain:0.20, soil:0.15, urban:0.20 };
+
+  async function fetchRiverFactor(lat, lon){
+    const query = `[out:json][timeout:12];way["waterway"~"^(river|stream)$"](around:5000,${lat},${lon});out center 20;`;
+    const data = await fetchOverpassJson(query);
+    const elements = (data.elements || []).filter(el => el.center);
+    if(!elements.length) return { factor:0, distanceKm:null, count:0 };
+    let minDist = Infinity;
+    elements.forEach(el => {
+      const d = haversineKm(lat, lon, el.center.lat, el.center.lon);
+      if(d < minDist) minDist = d;
+    });
+    const distanceFactor = clamp(1 - minDist/5, 0, 1);
+    const densityFactor = clamp(elements.length/8, 0, 1);
+    return { factor: clamp(distanceFactor*0.7 + densityFactor*0.3, 0, 1), distanceKm: minDist, count: elements.length };
+  }
+
+  async function fetchRainfallFactor(lat, lon){
+    const end = new Date();
+    const start = new Date(end); start.setDate(start.getDate()-365);
+    const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${isoDate(start)}&end_date=${isoDate(end)}&daily=precipitation_sum`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('archive failed');
+    const data = await res.json();
+    const values = (data.daily && data.daily.precipitation_sum) || [];
+    const valid = values.filter(v => v!==null && v!==undefined);
+    if(!valid.length) throw new Error('archive empty');
+    const annualMM = valid.reduce((a,b)=>a+b, 0);
+    const extremeDays = valid.filter(v => v > 30).length;
+    const factor = clamp(clamp(annualMM/1200,0,1)*0.6 + clamp(extremeDays/15,0,1)*0.4, 0, 1);
+    return { factor, annualMM, extremeDays };
+  }
+
+  async function fetchTerrainFactor(lat, lon){
+    const offset = 0.01; // ~1.1km
+    const lats = [lat, lat+offset, lat-offset, lat, lat];
+    const lons = [lon, lon, lon, lon+offset, lon-offset];
+    const url = `https://api.open-meteo.com/v1/elevation?latitude=${lats.join(',')}&longitude=${lons.join(',')}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('elevation failed');
+    const data = await res.json();
+    const els = data.elevation || [];
+    if(els.length < 5) throw new Error('elevation incomplete');
+    const [center, ...ring] = els;
+    const distM = offset * 111000;
+    const maxGradient = Math.max(...ring.map(e => Math.abs(e-center))) / distM;
+    const flatnessFactor = clamp(1 - maxGradient/0.02, 0, 1);
+    const isDepression = ring.every(e => e > center + 1);
+    const factor = clamp(flatnessFactor + (isDepression ? 0.15 : 0), 0, 1);
+    return { factor, elevation: center, slopePct: maxGradient*100, isDepression };
+  }
+
+  async function fetchSoilFactor(lat, lon){
+    const url = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon}&lat=${lat}&property=clay&depth=0-5cm&value=mean`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('soilgrids failed');
+    const data = await res.json();
+    const layer = data.properties.layers.find(l => l.name === 'clay');
+    const depth = layer.depths.find(d => d.label === '0-5cm');
+    const raw = depth.values.mean;
+    if(raw===null || raw===undefined) throw new Error('soilgrids no value');
+    const clayPct = raw / 10; // g/kg -> %
+    return { factor: clamp(clayPct/50, 0, 1), clayPct };
+  }
+
+  async function fetchUrbanFactor(lat, lon){
+    const query = `[out:json][timeout:12];(way["building"](around:1000,${lat},${lon});way["landuse"~"^(residential|commercial|industrial)$"](around:1000,${lat},${lon}););out count;`;
+    const data = await fetchOverpassJson(query);
+    const tags = data.elements && data.elements[0] && data.elements[0].tags;
+    const count = tags ? parseInt(tags.total, 10) || 0 : 0;
+    return { factor: clamp(count/150, 0, 1), count };
+  }
+
+  async function fetchClimateOutlook(lat, lon, baselineAnnualMM){
+    const url = `https://climate-api.open-meteo.com/v1/climate?latitude=${lat}&longitude=${lon}&start_date=2050-01-01&end_date=2050-12-31&models=CMCC_CM2_VHR4&daily=precipitation_sum`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('climate failed');
+    const data = await res.json();
+    const values = (data.daily && data.daily.precipitation_sum) || [];
+    const valid = values.filter(v => v!==null && v!==undefined);
+    if(!valid.length || !baselineAnnualMM) throw new Error('climate incomplete');
+    const projectedAnnualMM = valid.reduce((a,b)=>a+b, 0);
+    return { projectedAnnualMM, pctChange: ((projectedAnnualMM - baselineAnnualMM)/baselineAnnualMM)*100 };
+  }
+
+  function classifySusceptibility(score){
+    if(score >= 0.75) return { tier:'severe', label:'Severe' };
+    if(score >= 0.55) return { tier:'high', label:'High' };
+    if(score >= 0.35) return { tier:'moderate', label:'Moderate' };
+    return { tier:'low', label:'Low' };
+  }
+
+  function summaryForSusceptibility(sus){
+    const pct = Math.round(sus.score*100);
+    switch(sus.tier){
+      case 'severe': return `Combined terrain, rainfall, soil, and land-use signals place this location in the highest flood-susceptibility band (${pct}/100) — independent of today's specific river flow.`;
+      case 'high': return `Multiple flood-prone site characteristics are present here (${pct}/100), worth factoring into any site planning.`;
+      case 'moderate': return `This location shows a moderate mix of flood-prone characteristics (${pct}/100).`;
+      default: return `This location shows few flood-prone characteristics based on terrain, rainfall, soil, and land use (${pct}/100).`;
+    }
+  }
+
+  async function runSusceptibilityEngine(lat, lon){
+    const [riverR, rainR, terrainR, soilR, urbanR] = await Promise.allSettled([
+      fetchRiverFactor(lat, lon),
+      fetchRainfallFactor(lat, lon),
+      fetchTerrainFactor(lat, lon),
+      fetchSoilFactor(lat, lon),
+      fetchUrbanFactor(lat, lon)
+    ]);
+
+    const parts = [
+      { key:'river', weight: SUSCEPTIBILITY_WEIGHTS.river, result: riverR },
+      { key:'rainfall', weight: SUSCEPTIBILITY_WEIGHTS.rainfall, result: rainR },
+      { key:'terrain', weight: SUSCEPTIBILITY_WEIGHTS.terrain, result: terrainR },
+      { key:'soil', weight: SUSCEPTIBILITY_WEIGHTS.soil, result: soilR },
+      { key:'urban', weight: SUSCEPTIBILITY_WEIGHTS.urban, result: urbanR }
+    ].filter(p => p.result.status === 'fulfilled');
+
+    if(!parts.length) return { ok:false };
+
+    const totalWeight = parts.reduce((s,p) => s+p.weight, 0);
+    const score = parts.reduce((s,p) => s + p.result.value.factor * p.weight, 0) / totalWeight;
+    const { tier, label } = classifySusceptibility(score);
+
+    const values = {};
+    parts.forEach(p => values[p.key] = p.result.value);
+
+    let climate = null;
+    if(values.rainfall){
+      try{ climate = await fetchClimateOutlook(lat, lon, values.rainfall.annualMM); }
+      catch(err){ climate = null; }
+    }
+
+    return { ok:true, tier, label, score, values, climate, missing: 5 - parts.length };
+  }
+
   /* ---------------- main screening flow ---------------- */
   async function runScreening(lat, lon, label, fullName){
     const reqId = ++activeRequestId;
@@ -733,7 +882,10 @@
     $('panel').hidden = false;
     ensureMap(lat, lon);
     renderLoading(label, lat, lon);
+    renderSusceptibilityLoading();
     setLive(`Reading river gauge data for ${label}.`);
+
+    const susceptibilityPromise = runSusceptibilityEngine(lat, lon);
 
     const today = new Date();
     const start = new Date(today); start.setFullYear(start.getFullYear()-10);
@@ -791,6 +943,7 @@
       times, values, todayStr,
       gridLat, gridLon, gridDistance
     });
+    resizeMap();
 
     setLive(`${tierLabel} riverine flood risk for ${label}. ${summary}`);
 
@@ -804,6 +957,13 @@
         }
       }catch(err){ /* silent — supplementary only */ }
     }
+
+    // flood susceptibility engine — resolves independently, fills in progressively
+    susceptibilityPromise.then(sus => {
+      if(reqId !== activeRequestId) return;
+      renderSusceptibility(sus);
+      resizeMap();
+    });
   }
 
   /* ---------------- rendering ---------------- */
@@ -855,8 +1015,11 @@
         <div class="coords">${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}</div>
       </div>
 
-      <div class="risk-row">
-        <span class="risk-pill ${d.tier}"><span class="risk-marks">${d.marks}</span> ${d.tierLabel} risk</span>
+      <div class="risk-group">
+        <div class="risk-caption">Live river discharge vs. 10-year history &middot; Copernicus GloFAS</div>
+        <div class="risk-row">
+          <span class="risk-pill ${d.tier}"><span class="risk-marks">${d.marks}</span> ${d.tierLabel} risk</span>
+        </div>
       </div>
 
       <div class="risk-summary">${escapeText(d.summary)}</div>
@@ -885,6 +1048,73 @@
 
       <div class="disclaimer">
         Screening signal only, not a certified flood survey. Derived from Copernicus GloFAS river discharge at 5&nbsp;km resolution — the modeled channel can sit a few kilometres from the exact pin. Risk tier compares today's modeled flow to this location's own 10-year history.
+      </div>
+    `;
+  }
+
+  function renderSusceptibilityLoading(){
+    const card = $('susceptibilityCard');
+    if(!card) return;
+    card.innerHTML = `
+      <div class="risk-caption">Flood susceptibility</div>
+      <div class="loading-caption">Assessing terrain, rainfall, soil, and land use&hellip;</div>
+      <div class="skeleton-line" style="width:50%"></div>
+      <div class="skeleton-line" style="width:85%"></div>
+      <div class="skeleton-line" style="width:65%"></div>
+    `;
+  }
+
+  function renderSusceptibility(sus){
+    const card = $('susceptibilityCard');
+    if(!card) return;
+
+    if(!sus.ok){
+      card.innerHTML = `
+        <div class="risk-caption">Flood susceptibility</div>
+        <div class="risk-row">
+          <span class="risk-pill no-data"><span class="risk-marks">&ndash; &ndash; &ndash; &ndash;</span> Unavailable</span>
+        </div>
+        <div class="risk-summary">Not enough environmental data sources responded to compute a susceptibility score for this location.</div>
+      `;
+      return;
+    }
+
+    const marksMap = { severe:'&#9632; &#9632; &#9632; &#9632;', high:'&#9632; &#9632; &#9632; &#9633;', moderate:'&#9632; &#9632; &#9633; &#9633;', low:'&#9632; &#9633; &#9633; &#9633;' };
+
+    const v = sus.values;
+    let rows = '';
+    if(v.river){
+      rows += `<div class="data-row"><span class="k">River proximity</span><span class="v">${v.river.distanceKm!=null ? fmt(v.river.distanceKm,1)+' km &middot; '+v.river.count+' mapped nearby' : 'None mapped nearby'}</span></div>`;
+    }
+    if(v.rainfall){
+      rows += `<div class="data-row"><span class="k">Annual rainfall (trailing 365d)</span><span class="v">${fmt(v.rainfall.annualMM,0)} mm</span></div>`;
+      rows += `<div class="data-row"><span class="k">Extreme rainfall days (&gt;30mm)</span><span class="v">${v.rainfall.extremeDays}</span></div>`;
+    }
+    if(v.terrain){
+      rows += `<div class="data-row"><span class="k">Local terrain slope</span><span class="v">${fmt(v.terrain.slopePct,1)}%${v.terrain.isDepression ? ' &middot; local depression' : ''}</span></div>`;
+    }
+    if(v.soil){
+      rows += `<div class="data-row"><span class="k">Soil clay content</span><span class="v">${fmt(v.soil.clayPct,0)}%</span></div>`;
+    }
+    if(v.urban){
+      rows += `<div class="data-row"><span class="k">Urbanisation density</span><span class="v">${v.urban.count} structures nearby</span></div>`;
+    }
+    if(sus.climate){
+      rows += `<div class="data-row"><span class="k">Climate outlook (2050)</span><span class="v">${sus.climate.pctChange>=0?'+':''}${fmt(sus.climate.pctChange,0)}% rainfall vs. today</span></div>`;
+    }
+    if(sus.missing > 0){
+      rows += `<div class="data-row"><span class="k">Data coverage</span><span class="v">${5-sus.missing}/5 factors</span></div>`;
+    }
+
+    card.innerHTML = `
+      <div class="risk-caption">Flood susceptibility</div>
+      <div class="risk-row">
+        <span class="risk-pill ${sus.tier}"><span class="risk-marks">${marksMap[sus.tier]}</span> ${sus.label} susceptibility</span>
+      </div>
+      <div class="risk-summary">${escapeText(summaryForSusceptibility(sus))}</div>
+      <div class="data-rows">${rows}</div>
+      <div class="disclaimer">
+        Heuristic multi-signal screen (river proximity, rainfall, terrain, soil, land use), not a calibrated predictive model.
       </div>
     `;
   }
